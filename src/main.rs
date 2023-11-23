@@ -22,8 +22,8 @@ fn main() {
     let mut inputs = vec![];
     let mut outputs = vec![];
     for n in 0..4 {
-        let img0 = Image1d::from(format!("src/lib/0{}.png", n.to_string()).as_str());
-        let img1 = Image1d::from(format!("src/lib/1{}.png", n.to_string()).as_str());
+        let img0 = Image1d::grayscale_from(format!("src/lib/0{}.png", n.to_string()).as_str());
+        let img1 = Image1d::grayscale_from(format!("src/lib/1{}.png", n.to_string()).as_str());
         inputs.push(img0.pixels);
         outputs.push(vec![0 as f64]);
         inputs.push(img1.pixels);
