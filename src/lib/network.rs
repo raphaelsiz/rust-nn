@@ -1,6 +1,7 @@
 use std::vec;
 use std::fs::File;
 use std::io::{BufReader, Write};
+use rand::{thread_rng,Rng};
 use serde_json;
 use serde::{Serialize,Deserialize};
 
@@ -67,6 +68,28 @@ impl Network<'_> {
             gradients = self.data[i].map(self.activation.derivative);
         }
     }
+    pub fn stoc(&mut self, inputs: Vec<Vec<f64>>, targets: Vec<Vec<f64>>, learning_rate: f64) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
+        let mut rng = thread_rng();
+        let range_end = inputs.len() as f64*0.75; //encourage larger batches by not letting the start be further than 3/4 of the way into the data
+        let range_min = inputs.len() as f64*0.05; //range must be at least 5% of dataset
+        let start = rng.gen_range(0..range_end.floor() as usize);
+        let end = rng.gen_range(start + range_min.ceil() as usize..inputs.len());
+        let o = inputs.clone()[start..end].to_vec(); 
+        let t = targets.clone()[start..end].to_vec();
+        (o,t)
+    }
+    pub fn shuffle(mut inputs: Vec<Vec<f64>>,mut targets: Vec<Vec<f64>>) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
+        let mut outputs = vec![];
+        let mut newTargets = vec![];
+        let mut rng = thread_rng();
+        let ilen = inputs.len();
+        while outputs.len() < ilen {
+            let index = rng.gen_range(0..inputs.len()); //inputs.len gets shorter every time, as long as we call this every time it'll stay within the range
+            outputs.push(inputs.swap_remove(index)); //we don't care about ordering because we're shuffling anyway, so we use swap_remove bc it has low time complexity
+            newTargets.push(targets.swap_remove(index));
+        }
+        (outputs,newTargets)
+    }
 
     pub fn train(&mut self, inputs: Vec<Vec<f64>>, targets: Vec<Vec<f64>>, epochs: u16) {
         let mut learning_rate = self.learning_rate;
@@ -74,9 +97,11 @@ impl Network<'_> {
             if epochs < 1000 || i % (epochs/10) == 0 {
                 println!("Epoch {} of {}", i, epochs);
             }
-            for j in 0..inputs.len() {
-                let outputs = self.feed_forward(inputs[j].clone());
-                self.back_propogate(outputs, targets[j].clone(), learning_rate);
+            let shuffled = Network::shuffle(inputs.clone(), targets.clone());
+            let (mut batch, mut batch_targets) = self.stoc(shuffled.0,shuffled.1,learning_rate);
+            for j in 0..batch.len() {
+                let outputs = self.feed_forward(batch[j].clone());
+                self.back_propogate(outputs, batch_targets[j].clone(), learning_rate);
             }
             if learning_rate > 0.0001 && learning_rate > 0.01* self.learning_rate {
                 learning_rate = learning_rate * 0.90;
